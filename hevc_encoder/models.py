@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol
 
 Action = Literal["encode", "skip"]
-EncoderName = Literal["hevc_videotoolbox", "libx265", "hevc_qsv"]
+EncoderName = Literal["hevc_videotoolbox", "libx265", "hevc_qsv", "hevc_vaapi"]
 
 
 @dataclass

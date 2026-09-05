@@ -22,7 +22,8 @@ evaluate:
   duration_tolerance_seconds: 1.0
 
 encode:
-  encoder: auto            # libx265 on macOS; hevc_qsv on Linux if FFmpeg has it
+  encoder: auto            # libx265 on macOS; hevc_vaapi on Linux if FFmpeg has it (same iGPU as Quick Sync)
+  # vaapi_device: /dev/dri/renderD128
   video_quality: 65        # VideoToolbox -q:v (higher = better); maps to CRF / QSV global_quality ~22
   container: mkv
   audio: copy

@@ -280,10 +280,11 @@
           <div class="row">
             <label class="field" for="encoder">Encoder</label>
             <select id="encoder" name="encoder">
-              <option value="auto">auto (libx265 on Mac, QSV on Linux)</option>
+              <option value="auto">auto (libx265 on Mac, VA-API/QSV on Linux)</option>
               <option value="videotoolbox">videotoolbox</option>
               <option value="libx265">libx265</option>
-              <option value="qsv">qsv (Intel Quick Sync)</option>
+              <option value="vaapi">vaapi (Intel iGPU)</option>
+              <option value="qsv">qsv (Intel Media SDK)</option>
             </select>
           </div>
           <div class="row">
@@ -343,6 +344,7 @@
   <script>
     let activeTab = "files";
     let configPath = null;
+    let vaapiDevice = "/dev/dri/renderD128";
 
     function bytes(n) {
       if (n == null) return "—";
@@ -416,6 +418,7 @@
       document.getElementById("cap_1080").value = caps[1080];
       document.getElementById("cap_2160").value = caps[2160];
       document.getElementById("encoder").value = en.encoder || "auto";
+      vaapiDevice = en.vaapi_device || "/dev/dri/renderD128";
       document.getElementById("video_quality").value = en.video_quality ?? 65;
       document.querySelector('[name="replace_original"]').checked = !!en.replace_original;
       document.querySelector('[name="test_mode"]').checked = !!en.test_mode;
@@ -466,6 +469,7 @@
           jobs: 1,
           replace_original: document.querySelector('[name="replace_original"]').checked,
           test_mode: document.querySelector('[name="test_mode"]').checked,
+          vaapi_device: vaapiDevice,
           ...(temp ? { temp_dir: temp } : {}),
         },
         watch: { stable_seconds: Number(document.getElementById("stable_seconds").value) },

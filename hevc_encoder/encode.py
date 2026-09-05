@@ -63,18 +63,31 @@ def qsv_available(ffmpeg: str = "ffmpeg") -> bool:
     return "hevc_qsv" in _ffmpeg_encoder_list(ffmpeg)
 
 
+def vaapi_available(ffmpeg: str = "ffmpeg") -> bool:
+    return "hevc_vaapi" in _ffmpeg_encoder_list(ffmpeg)
+
+
 def resolve_encoder(cfg: AppConfig, ffmpeg: str | None = None) -> EncoderName:
-    """Pick an encoder. ``auto`` is libx265 on macOS; hevc_qsv on Linux when present."""
+    """Pick an encoder.
+
+    ``auto`` is libx265 on macOS. On Linux prefer ``hevc_vaapi`` (same Intel iGPU
+    as Quick Sync via VA-API). Ubuntu 4.4 ``hevc_qsv`` often cannot open MFX.
+    """
     binary = ffmpeg or cfg.ffmpeg
     choice = cfg.encode.encoder
     if choice == "videotoolbox":
         return "hevc_videotoolbox"
     if choice == "qsv":
         return "hevc_qsv"
+    if choice == "vaapi":
+        return "hevc_vaapi"
     if choice == "libx265":
         return "libx265"
-    if sys.platform.startswith("linux") and qsv_available(binary):
-        return "hevc_qsv"
+    if sys.platform.startswith("linux"):
+        if vaapi_available(binary):
+            return "hevc_vaapi"
+        if qsv_available(binary):
+            return "hevc_qsv"
     return "libx265"
 
 
@@ -99,6 +112,16 @@ def build_ffmpeg_args(
         "-progress",
         "pipe:1",
         "-nostats",
+    ]
+    if encoder == "hevc_vaapi":
+        device = str(cfg.encode.vaapi_device)
+        args += [
+            "-init_hw_device",
+            f"vaapi=va:{device}",
+            "-filter_hw_device",
+            "va",
+        ]
+    args += [
         "-i",
         str(video.path),
         "-map",
@@ -109,8 +132,11 @@ def build_ffmpeg_args(
         "0:s?",
         "-c",
         "copy",
-        "-c:v",
     ]
+    if encoder == "hevc_vaapi":
+        pix = "p010le" if video.bit_depth >= 10 else "nv12"
+        args += ["-vf", f"format={pix},hwupload"]
+    args += ["-c:v"]
 
     if encoder == "hevc_videotoolbox":
         args += ["hevc_videotoolbox", "-q:v", str(quality)]
@@ -119,7 +145,7 @@ def build_ffmpeg_args(
         else:
             args += ["-profile:v", "main", "-pix_fmt", "yuv420p"]
     elif encoder == "hevc_qsv":
-        # Software decode + QSV encode is the reliable LXC path (no extra hwaccel).
+        # Software decode + QSV encode. Often fails on Ubuntu 4.4 libmfx; VA-API is preferred.
         gq = libx265_crf(quality)
         args += [
             "hevc_qsv",
@@ -136,6 +162,19 @@ def build_ffmpeg_args(
             args += ["-profile:v", "main10", "-pix_fmt", "p010le"]
         else:
             args += ["-profile:v", "main", "-pix_fmt", "nv12"]
+    elif encoder == "hevc_vaapi":
+        qp = libx265_crf(quality)
+        args += [
+            "hevc_vaapi",
+            "-qp",
+            str(qp),
+            "-g",
+            "48",
+        ]
+        if video.bit_depth >= 10:
+            args += ["-profile:v", "main10"]
+        else:
+            args += ["-profile:v", "main"]
     else:
         crf = libx265_crf(quality)
         args += [

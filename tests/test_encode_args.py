@@ -61,6 +61,27 @@ def test_qsv_args() -> None:
     assert "libx265" not in args
 
 
+def test_vaapi_args() -> None:
+    video = video_from("h264_1080p.json")
+    cfg = AppConfig(encode=EncodeConfig(video_quality=65))
+    args = build_ffmpeg_args(video, Path("/tmp/a.mkv"), "hevc_vaapi", cfg)
+    assert args[args.index("-init_hw_device") + 1] == "vaapi=va:/dev/dri/renderD128"
+    assert args[args.index("-filter_hw_device") + 1] == "va"
+    assert args[args.index("-vf") + 1] == "format=nv12,hwupload"
+    assert "hevc_vaapi" in args
+    assert args[args.index("-qp") + 1] == "22"
+    assert args[args.index("-profile:v") + 1] == "main"
+    assert "hevc_qsv" not in args
+    assert "libx265" not in args
+
+
+def test_vaapi_10bit_uses_p010le() -> None:
+    video = video_from("hevc_bloated_4k.json")
+    args = build_ffmpeg_args(video, Path("/tmp/a.mkv"), "hevc_vaapi", AppConfig())
+    assert args[args.index("-vf") + 1] == "format=p010le,hwupload"
+    assert args[args.index("-profile:v") + 1] == "main10"
+
+
 def test_resolve_encoder_auto_and_libx265_use_libx265() -> None:
     assert resolve_encoder(AppConfig()) == "libx265"
     assert resolve_encoder(AppConfig(encode=EncodeConfig(encoder="libx265"))) == "libx265"
@@ -76,14 +97,28 @@ def test_resolve_encoder_qsv_is_explicit() -> None:
     assert resolve_encoder(cfg) == "hevc_qsv"
 
 
-def test_resolve_encoder_auto_uses_qsv_on_linux(monkeypatch) -> None:
+def test_resolve_encoder_vaapi_is_explicit() -> None:
+    cfg = AppConfig(encode=EncodeConfig(encoder="vaapi"))
+    assert resolve_encoder(cfg) == "hevc_vaapi"
+
+
+def test_resolve_encoder_auto_prefers_vaapi_on_linux(monkeypatch) -> None:
     monkeypatch.setattr("hevc_encoder.encode.sys.platform", "linux")
+    monkeypatch.setattr("hevc_encoder.encode.vaapi_available", lambda ffmpeg="ffmpeg": True)
+    monkeypatch.setattr("hevc_encoder.encode.qsv_available", lambda ffmpeg="ffmpeg": True)
+    assert resolve_encoder(AppConfig()) == "hevc_vaapi"
+
+
+def test_resolve_encoder_auto_uses_qsv_on_linux_without_vaapi(monkeypatch) -> None:
+    monkeypatch.setattr("hevc_encoder.encode.sys.platform", "linux")
+    monkeypatch.setattr("hevc_encoder.encode.vaapi_available", lambda ffmpeg="ffmpeg": False)
     monkeypatch.setattr("hevc_encoder.encode.qsv_available", lambda ffmpeg="ffmpeg": True)
     assert resolve_encoder(AppConfig()) == "hevc_qsv"
 
 
-def test_resolve_encoder_auto_stays_libx265_on_mac_even_if_qsv(monkeypatch) -> None:
+def test_resolve_encoder_auto_stays_libx265_on_mac_even_if_hw(monkeypatch) -> None:
     monkeypatch.setattr("hevc_encoder.encode.sys.platform", "darwin")
+    monkeypatch.setattr("hevc_encoder.encode.vaapi_available", lambda ffmpeg="ffmpeg": True)
     monkeypatch.setattr("hevc_encoder.encode.qsv_available", lambda ffmpeg="ffmpeg": True)
     assert resolve_encoder(AppConfig()) == "libx265"
 

@@ -167,9 +167,13 @@ def _encode_and_replace(
         try:
             encoded = encode_video(video, encoder, cfg, on_progress=on_progress)
         except EncodeError as first:
-            if encoder not in {"hevc_videotoolbox", "hevc_qsv"}:
+            if encoder not in {"hevc_videotoolbox", "hevc_qsv", "hevc_vaapi"}:
                 raise
-            label = "videotoolbox" if encoder == "hevc_videotoolbox" else "qsv"
+            label = {
+                "hevc_videotoolbox": "videotoolbox",
+                "hevc_qsv": "qsv",
+                "hevc_vaapi": "vaapi",
+            }[encoder]
             log.warning("%s failed, falling back to libx265: %s", label, first)
             encoder = "libx265"
             runtime.start(str(path), encoder)

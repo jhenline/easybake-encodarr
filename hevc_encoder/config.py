@@ -46,13 +46,14 @@ class EvaluateConfig(BaseModel):
 
 
 class EncodeConfig(BaseModel):
-    encoder: Literal["auto", "videotoolbox", "libx265", "qsv"] = "auto"
+    encoder: Literal["auto", "videotoolbox", "libx265", "qsv", "vaapi"] = "auto"
     video_quality: int = 65
     container: Literal["mkv"] = "mkv"
     audio: Literal["copy"] = "copy"
     subtitles: Literal["copy"] = "copy"
     jobs: int = 1
     temp_dir: Path | None = None
+    vaapi_device: Path = Path("/dev/dri/renderD128")
     replace_original: bool = True
     test_mode: bool = False
 
@@ -98,6 +99,7 @@ def normalize_config(cfg: AppConfig) -> AppConfig:
     cfg.state_db = cfg.state_db.expanduser()
     if cfg.encode.temp_dir is not None:
         cfg.encode.temp_dir = cfg.encode.temp_dir.expanduser()
+    cfg.encode.vaapi_device = cfg.encode.vaapi_device.expanduser()
     for lib in cfg.libraries:
         lib.path = lib.path.expanduser()
     return cfg
@@ -138,6 +140,7 @@ def config_to_dict(cfg: AppConfig) -> dict[str, Any]:
         "jobs": cfg.encode.jobs,
         "replace_original": cfg.encode.replace_original,
         "test_mode": cfg.encode.test_mode,
+        "vaapi_device": str(cfg.encode.vaapi_device),
     }
     if cfg.encode.temp_dir is not None:
         encode["temp_dir"] = str(cfg.encode.temp_dir)

@@ -159,6 +159,7 @@ def test_dump_and_reload_config(tmp_path: Path) -> None:
     assert loaded.evaluate.max_size_percent == src.evaluate.max_size_percent
     assert loaded.encode.video_quality == 65
     assert loaded.encode.test_mode is False
+    assert loaded.encode.vaapi_device == Path("/dev/dri/renderD128")
     assert loaded.libraries[0].path == src.libraries[0].path
     assert loaded.evaluate.bitrate_caps_kbps[1080] == 3500
 

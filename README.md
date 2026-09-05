@@ -2,7 +2,7 @@
 
 Scan configured folders, skip files that are already efficient HEVC, and re-encode the rest to H.265. No Tdarr graphs, no FileFlows. Set it and walk away.
 
-**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** with Intel Quick Sync defaults to `hevc_qsv` when FFmpeg provides it, and falls back to `libx265`. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
+**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** with an Intel iGPU defaults to `hevc_vaapi` (Quick Sync via VA-API). Ubuntu 22.04’s `hevc_qsv` often cannot open Media SDK; VA-API uses the same GPU. Hardware encode falls back to `libx265`. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
 
 CLI: `easybake` (`hevc-encoder` still works as an alias).
 
@@ -11,7 +11,7 @@ CLI: `easybake` (`hevc-encoder` still works as an alias).
 - Python 3.12+
 - [FFmpeg](https://ffmpeg.org) with `ffprobe`
   - macOS (Homebrew): `brew install ffmpeg`
-  - Linux + Intel iGPU: distro `ffmpeg` is enough if `ffmpeg -encoders | grep hevc_qsv` prints a line (Ubuntu 22.04’s package does). jellyfin-ffmpeg is optional, not required.
+  - Linux + Intel iGPU: distro `ffmpeg` is enough if `ffmpeg -encoders | grep hevc_vaapi` prints a line (Ubuntu 22.04’s package does). jellyfin-ffmpeg is optional, not required.
 
 ## Setup (macOS / any machine)
 
@@ -33,10 +33,10 @@ The `easybake` command lives in the virtualenv. Either activate it (`source .ven
 
 ## Linux (Plex LXC)
 
-Ubuntu 22.04: stock `ffmpeg` already includes `hevc_qsv`. Install `git`, Python 3.12 (deadsnakes if needed), `vainfo`, and `intel-media-va-driver-non-free`. Confirm:
+Ubuntu 22.04: stock `ffmpeg` includes `hevc_vaapi` (and `hevc_qsv`, which often fails to open MFX). Install `git`, Python 3.12 (deadsnakes if needed), `vainfo`, and `intel-media-va-driver-non-free`. Confirm:
 
 ```bash
-ffmpeg -encoders | grep hevc_qsv
+ffmpeg -encoders | grep hevc_vaapi
 vainfo
 ```
 
