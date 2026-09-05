@@ -43,7 +43,7 @@ vainfo
 Clone as user `plex`:
 
 ```bash
-sudo -u plex git clone https://github.com/YOUR_USER/easybake-encodarr.git /opt/easybake-encodarr
+sudo -u plex git clone https://github.com/jhenline/easybake-encodarr.git /opt/easybake-encodarr
 cd /opt/easybake-encodarr
 sudo -u plex python3.12 -m venv .venv
 sudo -u plex .venv/bin/pip install -e .
