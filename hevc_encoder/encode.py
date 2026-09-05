@@ -67,6 +67,18 @@ def vaapi_available(ffmpeg: str = "ffmpeg") -> bool:
     return "hevc_vaapi" in _ffmpeg_encoder_list(ffmpeg)
 
 
+def vaapi_upload_filter(bit_depth: int) -> str:
+    """CPU pad to 32px, then NV12/P010 upload.
+
+    Intel HEVC encode corrupts frames whose size is not a multiple of 32.
+    Padding in NV12 also wrecks chroma; pad in planar YUV first.
+    """
+    planar = "yuv420p10le" if bit_depth >= 10 else "yuv420p"
+    packed = "p010le" if bit_depth >= 10 else "nv12"
+    pad = "pad=ceil(iw/32)*32:ceil(ih/32)*32"
+    return f"format={planar},{pad},format={packed},hwupload=extra_hw_frames=64"
+
+
 def resolve_encoder(cfg: AppConfig, ffmpeg: str | None = None) -> EncoderName:
     """Pick an encoder.
 
@@ -134,8 +146,7 @@ def build_ffmpeg_args(
         "copy",
     ]
     if encoder == "hevc_vaapi":
-        pix = "p010le" if video.bit_depth >= 10 else "nv12"
-        args += ["-vf", f"format={pix},hwupload"]
+        args += ["-vf", vaapi_upload_filter(video.bit_depth)]
     args += ["-c:v"]
 
     if encoder == "hevc_videotoolbox":
@@ -170,6 +181,10 @@ def build_ffmpeg_args(
             str(qp),
             "-g",
             "48",
+            "-bf",
+            "0",
+            "-aud",
+            "1",
         ]
         if video.bit_depth >= 10:
             args += ["-profile:v", "main10"]

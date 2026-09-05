@@ -11,6 +11,7 @@ from hevc_encoder.encode import (
     output_dest_path,
     remux_temp_path,
     resolve_encoder,
+    vaapi_upload_filter,
 )
 from tests.conftest import video_from
 
@@ -61,15 +62,26 @@ def test_qsv_args() -> None:
     assert "libx265" not in args
 
 
-def test_vaapi_args() -> None:
+def test_vaapi_upload_filter_pads_planar_then_nv12() -> None:
+    assert vaapi_upload_filter(8) == (
+        "format=yuv420p,pad=ceil(iw/32)*32:ceil(ih/32)*32,format=nv12,"
+        "hwupload=extra_hw_frames=64"
+    )
+    assert "yuv420p10le" in vaapi_upload_filter(10)
+    assert "p010le" in vaapi_upload_filter(10)
     video = video_from("h264_1080p.json")
     cfg = AppConfig(encode=EncodeConfig(video_quality=65))
     args = build_ffmpeg_args(video, Path("/tmp/a.mkv"), "hevc_vaapi", cfg)
     assert args[args.index("-init_hw_device") + 1] == "vaapi=va:/dev/dri/renderD128"
     assert args[args.index("-filter_hw_device") + 1] == "va"
-    assert args[args.index("-vf") + 1] == "format=nv12,hwupload"
+    assert args[args.index("-vf") + 1] == vaapi_upload_filter(8)
+    assert args[args.index("-vf") + 1] == (
+        "format=yuv420p,pad=ceil(iw/32)*32:ceil(ih/32)*32,format=nv12,"
+        "hwupload=extra_hw_frames=64"
+    )
     assert "hevc_vaapi" in args
     assert args[args.index("-qp") + 1] == "22"
+    assert args[args.index("-bf") + 1] == "0"
     assert args[args.index("-profile:v") + 1] == "main"
     assert "hevc_qsv" not in args
     assert "libx265" not in args
@@ -78,7 +90,8 @@ def test_vaapi_args() -> None:
 def test_vaapi_10bit_uses_p010le() -> None:
     video = video_from("hevc_bloated_4k.json")
     args = build_ffmpeg_args(video, Path("/tmp/a.mkv"), "hevc_vaapi", AppConfig())
-    assert args[args.index("-vf") + 1] == "format=p010le,hwupload"
+    assert args[args.index("-vf") + 1] == vaapi_upload_filter(10)
+    assert "yuv420p10le" in args[args.index("-vf") + 1]
     assert args[args.index("-profile:v") + 1] == "main10"
 
 
