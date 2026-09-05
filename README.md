@@ -2,7 +2,7 @@
 
 Scan configured folders, skip files that are already efficient HEVC, and re-encode the rest to H.265. No Tdarr graphs, no FileFlows. Set it and walk away.
 
-**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** with an Intel iGPU defaults to `hevc_vaapi` (Quick Sync via VA-API). Ubuntu 22.04’s `hevc_qsv` often cannot open Media SDK; VA-API uses the same GPU. Hardware encode falls back to `libx265`. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
+**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** with an Intel iGPU defaults to `hevc_vaapi` (Quick Sync via VA-API). Ubuntu 22.04’s `hevc_qsv` often cannot open Media SDK; VA-API uses the same GPU. Frames are padded to a multiple of 32 before encode (odd sizes like 1918×802 otherwise come out as garbage). Hardware encode falls back to `libx265`. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
 
 CLI: `easybake` (`hevc-encoder` still works as an alias).
 
