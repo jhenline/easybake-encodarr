@@ -5,7 +5,6 @@ import os
 import re
 import signal
 import subprocess
-import sys
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -82,10 +81,10 @@ def vaapi_upload_filter(bit_depth: int) -> str:
 def resolve_encoder(cfg: AppConfig, ffmpeg: str | None = None) -> EncoderName:
     """Pick an encoder.
 
-    ``auto`` is libx265 on macOS. On Linux prefer ``hevc_vaapi`` (same Intel iGPU
-    as Quick Sync via VA-API). Ubuntu 4.4 ``hevc_qsv`` often cannot open MFX.
+    ``auto`` is libx265 on every platform. Ubuntu 22.04 ``hevc_vaapi`` can
+    emit HEVC that looks like garbage. Use ``encoder: vaapi`` or ``qsv`` only
+    with a newer FFmpeg you have tested.
     """
-    binary = ffmpeg or cfg.ffmpeg
     choice = cfg.encode.encoder
     if choice == "videotoolbox":
         return "hevc_videotoolbox"
@@ -93,13 +92,6 @@ def resolve_encoder(cfg: AppConfig, ffmpeg: str | None = None) -> EncoderName:
         return "hevc_qsv"
     if choice == "vaapi":
         return "hevc_vaapi"
-    if choice == "libx265":
-        return "libx265"
-    if sys.platform.startswith("linux"):
-        if vaapi_available(binary):
-            return "hevc_vaapi"
-        if qsv_available(binary):
-            return "hevc_qsv"
     return "libx265"
 
 

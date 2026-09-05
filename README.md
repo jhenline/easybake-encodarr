@@ -2,7 +2,7 @@
 
 Scan configured folders, skip files that are already efficient HEVC, and re-encode the rest to H.265. No Tdarr graphs, no FileFlows. Set it and walk away.
 
-**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** with an Intel iGPU defaults to `hevc_vaapi` (Quick Sync via VA-API). Ubuntu 22.04’s `hevc_qsv` often cannot open Media SDK; VA-API uses the same GPU. Frames are padded to a multiple of 32 before encode (odd sizes like 1918×802 otherwise come out as garbage). Hardware encode falls back to `libx265`. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
+**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** also defaults to `libx265`. Ubuntu 22.04’s `hevc_qsv` often cannot open Media SDK, and `hevc_vaapi` on that FFmpeg 4.4 stack can write HEVC that looks like garbage (tiny bitrate, IINA “Hw Decoder: no”). Set `encode.encoder: vaapi` only if you install a newer FFmpeg and have verified a short test clip. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
 
 CLI: `easybake` (`hevc-encoder` still works as an alias).
 
@@ -33,26 +33,26 @@ The `easybake` command lives in the virtualenv. Either activate it (`source .ven
 
 ## Linux (Plex LXC)
 
-Ubuntu 22.04: stock `ffmpeg` includes `hevc_vaapi` (and `hevc_qsv`, which often fails to open MFX). Install `git`, Python 3.12 (deadsnakes if needed), `vainfo`, and `intel-media-va-driver-non-free`. Confirm:
+Ubuntu 22.04: stock `ffmpeg` is enough for **libx265**. `hevc_qsv` often cannot open MFX; `hevc_vaapi` on this FFmpeg 4.4 stack can write corrupt HEVC. Install `git`, Python 3.12 (deadsnakes if needed). `vainfo` and `intel-media-va-driver-non-free` are only needed if you later test a newer FFmpeg with `encoder: vaapi`.
+
+Work as **root** for git (`git pull` in `/opt/easybake-encodarr`), same as other repos. Use **HTTPS** and a GitHub personal access token (not your GitHub password), stored once with `git config --global credential.helper store`.
+
+NFS `/plex` is owned by UID 1000 and squashes container root, so encodes still run as user `nas` (UID 1000). Install `deploy/easybake-lxc` as `/usr/local/bin/easybake` so you type `easybake scan` without `sudo -u`.
 
 ```bash
-ffmpeg -encoders | grep hevc_vaapi
-vainfo
-```
-
-Clone as user `plex`:
-
-```bash
-sudo -u plex git clone https://github.com/jhenline/easybake-encodarr.git /opt/easybake-encodarr
+git clone https://github.com/jhenline/easybake-encodarr.git /opt/easybake-encodarr
 cd /opt/easybake-encodarr
-sudo -u plex python3.12 -m venv .venv
-sudo -u plex .venv/bin/pip install -e .
-sudo -u plex cp config.example.yml config.yml
+python3.12 -m venv .venv
+.venv/bin/pip install -e .
+cp config.example.yml config.yml
+chown -R root:nas /opt/easybake-encodarr
+chmod -R g+rwX /opt/easybake-encodarr
+install -m 755 deploy/easybake-lxc /usr/local/bin/easybake
 ```
 
-Point `libraries` at the same paths Plex uses (under `/plex`). Keep encode temps on `/plex`, not the container root disk.
+Point `libraries` at the same paths Plex uses (under `/plex`). Keep encode temps on `/plex`, not the container root disk. Put `state_db` somewhere `nas` can write (for example `/opt/easybake-encodarr/encoder.db` after the `chown` above).
 
-Install the timer (edit `User=` if Plex does not run as `plex`):
+Install the timer (`User=nas` in the unit):
 
 ```bash
 cp deploy/hevc-encoder.service deploy/hevc-encoder.timer /etc/systemd/system/
@@ -63,7 +63,7 @@ systemctl enable --now hevc-encoder.timer
 First run: `test_mode: true` and `replace_original: false`, then:
 
 ```bash
-sudo -u plex /opt/easybake-encodarr/.venv/bin/easybake scan -c /opt/easybake-encodarr/config.yml
+easybake scan -c /opt/easybake-encodarr/config.yml
 ```
 
 Stop the Mac encoder before a full Linux scan so two machines do not process the same libraries.

@@ -115,27 +115,6 @@ def test_resolve_encoder_vaapi_is_explicit() -> None:
     assert resolve_encoder(cfg) == "hevc_vaapi"
 
 
-def test_resolve_encoder_auto_prefers_vaapi_on_linux(monkeypatch) -> None:
-    monkeypatch.setattr("hevc_encoder.encode.sys.platform", "linux")
-    monkeypatch.setattr("hevc_encoder.encode.vaapi_available", lambda ffmpeg="ffmpeg": True)
-    monkeypatch.setattr("hevc_encoder.encode.qsv_available", lambda ffmpeg="ffmpeg": True)
-    assert resolve_encoder(AppConfig()) == "hevc_vaapi"
-
-
-def test_resolve_encoder_auto_uses_qsv_on_linux_without_vaapi(monkeypatch) -> None:
-    monkeypatch.setattr("hevc_encoder.encode.sys.platform", "linux")
-    monkeypatch.setattr("hevc_encoder.encode.vaapi_available", lambda ffmpeg="ffmpeg": False)
-    monkeypatch.setattr("hevc_encoder.encode.qsv_available", lambda ffmpeg="ffmpeg": True)
-    assert resolve_encoder(AppConfig()) == "hevc_qsv"
-
-
-def test_resolve_encoder_auto_stays_libx265_on_mac_even_if_hw(monkeypatch) -> None:
-    monkeypatch.setattr("hevc_encoder.encode.sys.platform", "darwin")
-    monkeypatch.setattr("hevc_encoder.encode.vaapi_available", lambda ffmpeg="ffmpeg": True)
-    monkeypatch.setattr("hevc_encoder.encode.qsv_available", lambda ffmpeg="ffmpeg": True)
-    assert resolve_encoder(AppConfig()) == "libx265"
-
-
 def test_cover_art_is_not_mapped_as_video() -> None:
     video = video_from("mpeg2_with_cover.json")
     cfg = AppConfig()
