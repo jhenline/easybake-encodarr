@@ -2,7 +2,7 @@
 
 Scan configured folders, skip files that are already efficient HEVC, and re-encode the rest to H.265. No Tdarr graphs, no FileFlows. Set it and walk away.
 
-**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** also defaults to `libx265`. Ubuntu 22.04’s `hevc_qsv` often cannot open Media SDK, and `hevc_vaapi` on that FFmpeg 4.4 stack can write HEVC that looks like garbage (tiny bitrate, IINA “Hw Decoder: no”). Set `encode.encoder: vaapi` only if you install a newer FFmpeg and have verified a short test clip. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
+**macOS** defaults to FFmpeg `libx265` (Plex-friendly). Set `encode.encoder: videotoolbox` for faster Apple GPU encoding; those files often fail Intel hardware transcode. **Linux** also defaults to `libx265`. Ubuntu 22.04’s stock `hevc_qsv` often cannot open Media SDK, and stock `hevc_vaapi` can write HEVC that looks like garbage. For iGPU encodes, install [jellyfin-ffmpeg](https://github.com/jellyfin/jellyfin-ffmpeg) from Jellyfin’s apt repo, point `ffmpeg:` / `ffprobe:` at `/usr/lib/jellyfin-ffmpeg/`, and set `encode.encoder: vaapi` only after a short test clip looks right in IINA. Originals are replaced only after a finished, validated encode. Set `encode.replace_original: false` to keep the original and write `Movie.hevc.mkv` beside it while testing. Set `encode.test_mode: true` to encode **one** file then stop (skips already-processed titles first). Ctrl+C deletes the hidden temp file and never promotes a partial encode.
 
 CLI: `easybake` (`hevc-encoder` still works as an alias).
 
@@ -11,7 +11,7 @@ CLI: `easybake` (`hevc-encoder` still works as an alias).
 - Python 3.12+
 - [FFmpeg](https://ffmpeg.org) with `ffprobe`
   - macOS (Homebrew): `brew install ffmpeg`
-  - Linux + Intel iGPU: distro `ffmpeg` is enough if `ffmpeg -encoders | grep hevc_vaapi` prints a line (Ubuntu 22.04’s package does). jellyfin-ffmpeg is optional, not required.
+  - Linux + Intel iGPU: Ubuntu 22.04 stock FFmpeg 4.4 is fine for **libx265**. For iGPU HEVC install **jellyfin-ffmpeg** from Jellyfin’s apt repo (not the Jellyfin server) and point `ffmpeg:` / `ffprobe:` at `/usr/lib/jellyfin-ffmpeg/`. See [Linux (Plex LXC)](#linux-plex-lxc).
 
 ## Setup (macOS / any machine)
 
@@ -33,7 +33,56 @@ The `easybake` command lives in the virtualenv. Either activate it (`source .ven
 
 ## Linux (Plex LXC)
 
-Ubuntu 22.04: stock `ffmpeg` is enough for **libx265**. `hevc_qsv` often cannot open MFX; `hevc_vaapi` on this FFmpeg 4.4 stack can write corrupt HEVC. Install `git`, Python 3.12 (deadsnakes if needed). `vainfo` and `intel-media-va-driver-non-free` are only needed if you later test a newer FFmpeg with `encoder: vaapi`.
+Ubuntu 22.04: stock `ffmpeg` is enough for **libx265**. For the iGPU, add Jellyfin’s apt repo and install **only** `jellyfin-ffmpeg7` (do not install the `jellyfin` metapackage unless you want a second media server). `vainfo` and `intel-media-va-driver-non-free` should already be present.
+
+```bash
+bash /opt/easybake-encodarr/deploy/install-jellyfin-ffmpeg-ubuntu.sh
+```
+
+Or the same steps by hand (official [Jellyfin repo](https://jellyfin.org/docs/general/installation/advanced/manual/)):
+
+```bash
+apt install -y curl gnupg software-properties-common
+add-apt-repository -y universe
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://repo.jellyfin.org/jellyfin_team.gpg.key | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg
+chmod a+r /etc/apt/keyrings/jellyfin.gpg
+cat >/etc/apt/sources.list.d/jellyfin.sources <<EOF
+Types: deb
+URIs: https://repo.jellyfin.org/ubuntu
+Suites: jammy
+Components: main
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/jellyfin.gpg
+EOF
+apt update
+apt install -y jellyfin-ffmpeg7
+```
+
+If `jellyfin-ffmpeg7` is not found, `apt-cache search jellyfin-ffmpeg` and install the newest `jellyfin-ffmpegN` package.
+
+In `/opt/easybake-encodarr/config.yml`:
+
+```yaml
+encode:
+  encoder: libx265          # switch to vaapi after a 10s test clip looks good
+ffmpeg: /usr/lib/jellyfin-ffmpeg/ffmpeg
+ffprobe: /usr/lib/jellyfin-ffmpeg/ffprobe
+```
+
+Test before a library scan (`nas` can run this binary):
+
+```bash
+/usr/lib/jellyfin-ffmpeg/ffmpeg -hide_banner -encoders | grep -E 'hevc_vaapi|hevc_qsv|libx265'
+runuser -u nas -- /usr/lib/jellyfin-ffmpeg/ffmpeg -hide_banner -y \
+  -init_hw_device vaapi=va:/dev/dri/renderD128 -filter_hw_device va \
+  -i "/plex/film/Mayday (2026)/Mayday (2026).mkv" -t 10 \
+  -vf 'format=yuv420p,pad=ceil(iw/32)*32:ceil(ih/32)*32,format=nv12,hwupload=extra_hw_frames=64' \
+  -c:v hevc_vaapi -qp 22 -bf 0 -aud 1 -an \
+  "/plex/film/Mayday (2026)/mayday-jf-ffmpeg-test.mkv"
+```
+
+Play that file in IINA. If it looks normal, set `encode.encoder: vaapi`, delete the test file, forget Mayday in the dashboard, and `easybake scan`. If QSV works on this build (`hevc_qsv` no longer errors), you can try `encoder: qsv` the same way. If both still look like garbage, stay on `libx265` with jellyfin-ffmpeg (often a better x265 than Ubuntu 4.4).
 
 Work as **root** for git (`git pull` in `/opt/easybake-encodarr`), same as other repos. Use **HTTPS** and a GitHub personal access token (not your GitHub password), stored once with `git config --global credential.helper store`.
 

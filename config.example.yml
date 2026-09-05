@@ -22,7 +22,7 @@ evaluate:
   duration_tolerance_seconds: 1.0
 
 encode:
-  encoder: auto            # libx265 (set vaapi or qsv only with a newer FFmpeg; Ubuntu 22.04 iGPU HEVC is unreliable)
+  encoder: auto            # libx265; after jellyfin-ffmpeg, try vaapi once a 10s clip looks good
   # vaapi_device: /dev/dri/renderD128
   video_quality: 65        # VideoToolbox -q:v (higher = better); maps to CRF / QSV global_quality ~22
   container: mkv
@@ -41,8 +41,8 @@ dashboard:
   port: 8745
 
 # state_db: ~/.hevc-encoder/encoder.db
-ffmpeg: ffmpeg
-ffprobe: ffprobe
+ffmpeg: ffmpeg             # Linux iGPU: /usr/lib/jellyfin-ffmpeg/ffmpeg
+ffprobe: ffprobe           # Linux iGPU: /usr/lib/jellyfin-ffmpeg/ffprobe
 
 ignore_globs:
   - "._*"
