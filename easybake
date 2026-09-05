@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+BIN="$ROOT/.venv/bin/easybake"
+if [ ! -x "$BIN" ]; then
+  BIN="$ROOT/.venv/bin/hevc-encoder"
+fi
+if [ ! -x "$BIN" ]; then
+  echo "Virtualenv is missing. From $ROOT run:" >&2
+  echo "  python3 -m venv .venv" >&2
+  echo "  .venv/bin/pip install -e ." >&2
+  exit 1
+fi
+exec "$BIN" "$@"

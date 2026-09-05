@@ -1,0 +1,21 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "hevc",
+      "codec_type": "video",
+      "width": 3840,
+      "height": 2160,
+      "pix_fmt": "yuv420p10le",
+      "avg_frame_rate": "24/1",
+      "bit_rate": "40000000",
+      "bits_per_raw_sample": "10",
+      "duration": "3600.000000"
+    }
+  ],
+  "format": {
+    "duration": "3600.000000",
+    "size": "18000000000",
+    "bit_rate": "40000000"
+  }
+}

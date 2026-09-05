@@ -1,0 +1,54 @@
+# Copy to config.yml and edit paths.
+#   cp config.example.yml config.yml
+
+libraries:
+  - path: /path/to/Movies
+    recursive: true
+  - path: /path/to/TV
+    recursive: true
+
+evaluate:
+  mode: rules              # rules now; vmaf later
+  skip_if_hevc: true
+  reconvert_hevc: false    # re-encode bloated HEVC only if true
+  skip_hdr: true           # VideoToolbox HDR is unreliable in v1
+  max_size_percent: 90     # keep encode only if <= this % of original
+  bitrate_caps_kbps:
+    720: 1000
+    1080: 3500
+    2160: 16000
+  bpp_skip_below: 0.10
+  duration_tolerance_percent: 2.0
+  duration_tolerance_seconds: 1.0
+
+encode:
+  encoder: auto            # libx265 on macOS; hevc_qsv on Linux if FFmpeg has it
+  video_quality: 65        # VideoToolbox -q:v (higher = better); maps to CRF / QSV global_quality ~22
+  container: mkv
+  audio: copy
+  subtitles: copy
+  jobs: 1
+  replace_original: true   # false = write Movie.hevc.mkv beside the original (testing)
+  test_mode: false         # true = encode one file then stop (scan / watch / retry)
+  # temp_dir: /Volumes/Media/tmp   # must be on the same volume as the source
+
+watch:
+  stable_seconds: 30
+
+dashboard:
+  host: 127.0.0.1
+  port: 8745
+
+# state_db: ~/.hevc-encoder/encoder.db
+ffmpeg: ffmpeg
+ffprobe: ffprobe
+
+ignore_globs:
+  - "._*"
+  - "*.partial"
+  - "*.!qB"
+  - "*.tmp"
+  - "*.bak"
+  - "*.encoding.mkv"
+  - "*.encoding.*"
+  - "*.hevc.mkv"

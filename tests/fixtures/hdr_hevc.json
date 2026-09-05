@@ -1,0 +1,29 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_name": "hevc",
+      "codec_type": "video",
+      "width": 1920,
+      "height": 1080,
+      "pix_fmt": "yuv420p10le",
+      "color_primaries": "bt2020",
+      "color_transfer": "smpte2084",
+      "color_space": "bt2020nc",
+      "avg_frame_rate": "24/1",
+      "bit_rate": "12000000",
+      "bits_per_raw_sample": "10",
+      "duration": "3600.000000",
+      "side_data_list": [
+        {
+          "side_data_type": "Mastering display metadata"
+        }
+      ]
+    }
+  ],
+  "format": {
+    "duration": "3600.000000",
+    "size": "5400000000",
+    "bit_rate": "12000000"
+  }
+}

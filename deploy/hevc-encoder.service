@@ -1,0 +1,18 @@
+[Unit]
+Description=EasyBake Encodarr (one library scan)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=plex
+Group=plex
+WorkingDirectory=/opt/easybake-encodarr
+Environment=PATH=/opt/easybake-encodarr/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+ExecStart=/opt/easybake-encodarr/.venv/bin/easybake scan --config /opt/easybake-encodarr/config.yml
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target
